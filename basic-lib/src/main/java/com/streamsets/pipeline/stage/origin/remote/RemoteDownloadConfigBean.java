@@ -207,4 +207,15 @@ public class RemoteDownloadConfigBean {
   )
   public String initialFileToProcess;
 
+  @ConfigDef(
+      required = true,
+      type = ConfigDef.Type.NUMBER,
+      label = "Socket timeout(ms)",
+      defaultValue = "50000",
+      description = "Socket timeout. If not set, timeout will be ignored",
+      displayPosition = 70,
+      group = "REMOTE"
+  )
+  public Integer socketTimeout = 50000;
+
 }
