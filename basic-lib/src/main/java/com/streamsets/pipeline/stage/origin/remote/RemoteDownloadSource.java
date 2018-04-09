@@ -42,16 +42,8 @@ import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ArrayUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.vfs2.FileNotFoundException;
-import org.apache.commons.vfs2.FileObject;
-import org.apache.commons.vfs2.FileSelectInfo;
-import org.apache.commons.vfs2.FileSelector;
+import org.apache.commons.vfs2.*;
 import org.apache.commons.vfs2.FileSystem;
-import org.apache.commons.vfs2.FileSystemException;
-import org.apache.commons.vfs2.FileSystemManager;
-import org.apache.commons.vfs2.FileSystemOptions;
-import org.apache.commons.vfs2.FileType;
-import org.apache.commons.vfs2.NameScope;
-import org.apache.commons.vfs2.VFS;
 import org.apache.commons.vfs2.auth.StaticUserAuthenticator;
 import org.apache.commons.vfs2.impl.DefaultFileSystemConfigBuilder;
 import org.apache.commons.vfs2.provider.ftp.FtpFileSystemConfigBuilder;
@@ -59,22 +51,15 @@ import org.apache.commons.vfs2.provider.sftp.SftpFileSystemConfigBuilder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
+import java.io.*;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.nio.channels.ClosedByInterruptException;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.NavigableSet;
-import java.util.TreeSet;
-import java.util.UUID;
+import java.time.Instant;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static com.streamsets.pipeline.stage.origin.lib.DataFormatParser.DATA_FORMAT_CONFIG_PREFIX;
 
@@ -536,7 +521,6 @@ public class RemoteDownloadSource extends BaseSource {
   }
 
   private void handleFatalException(Exception ex, RemoteFile next) throws StageException {
-    LOG.error("Error while attempting to parse file: " + next.filename, ex);
     if (ex instanceof FileNotFoundException) {
       LOG.warn("File: {} was found in listing, but is not downloadable", next != null ? next.filename : "(null)", ex);
     }
@@ -623,6 +607,7 @@ public class RemoteDownloadSource extends BaseSource {
       theFiles = (FileObject[]) ArrayUtils.addAll(theFiles, remoteDir.findFiles(selector));
     }
 
+    List<RemoteFile> remoteFiles = new ArrayList<>();
     for (FileObject remoteFile : theFiles) {
       if (remoteFile.getType() != FileType.FILE) {
         continue;
@@ -635,10 +620,25 @@ public class RemoteDownloadSource extends BaseSource {
 
       long lastModified = remoteFile.getContent().getLastModifiedTime();
       RemoteFile tempFile = new RemoteFile(remoteFile.getName().getPath(), lastModified, remoteFile);
-      if (shouldQueue(tempFile)) {
+      remoteFiles.add(tempFile);
+    }
+
+    if (conf.excludeLatestFile) {
+      if (conf.sortBy == SortFileBy.FILECREATETIME_ASC || conf.sortBy == SortFileBy.FILECREATETIME_DESC) {
+        int direction = conf.sortBy == SortFileBy.FILECREATETIME_ASC ? 1 : -1;
+        remoteFiles.sort(Comparator.comparingLong(b -> b.lastModified));
+      } else if (conf.sortBy == SortFileBy.FILENAME_ASC || conf.sortBy == SortFileBy.FILENAME_DESC) {
+        int direction = conf.sortBy == SortFileBy.FILENAME_ASC ? 1 : -1;
+        remoteFiles.sort((b1, b2) -> b1.filename.compareTo(b2.filename) * direction);
+      }
+      remoteFiles.remove(remoteFiles.size() - 1);
+    }
+
+    for (RemoteFile remoteFile : remoteFiles) {
+      if (shouldQueue(remoteFile)) {
         // If we are done with all files, the files with the final mtime might get re-ingested over and over.
         // So if it is the one of those, don't pull it in.
-        fileQueue.add(tempFile);
+        fileQueue.add(remoteFile);
       }
     }
   }
