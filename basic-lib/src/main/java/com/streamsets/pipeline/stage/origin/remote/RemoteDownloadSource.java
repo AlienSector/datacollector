@@ -323,11 +323,12 @@ public class RemoteDownloadSource extends BaseSource {
         if(!StringUtils.isEmpty(conf.initialFileToProcess)) {
           try {
             FileObject initialFile = remoteDir.resolveFile(conf.initialFileToProcess, NameScope.DESCENDENT);
+            String offset = conf.ignoreInitialFile ? MINUS_ONE : ZERO;
 
             currentOffset = new Offset(
               initialFile.getName().getPath(),
               initialFile.getContent().getLastModifiedTime(),
-              ZERO
+              offset
             );
           } catch (FileSystemException e) {
             throw new StageException(Errors.REMOTE_16, conf.initialFileToProcess, e.toString(), e);

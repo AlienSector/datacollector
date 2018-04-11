@@ -231,6 +231,17 @@ public class RemoteDownloadConfigBean {
   public String initialFileToProcess;
 
   @ConfigDef(
+      required = false,
+      type = ConfigDef.Type.BOOLEAN,
+      label = "Ignore first file",
+      defaultValue = "false",
+      description = "Check if need to ignore first file",
+      group = "REMOTE",
+      displayPosition = 51
+  )
+  public Boolean ignoreInitialFile = false;
+
+  @ConfigDef(
       required = true,
       type = ConfigDef.Type.NUMBER,
       label = "Socket timeout(ms)",
