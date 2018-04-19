@@ -624,7 +624,7 @@ public class RemoteDownloadSource extends BaseSource {
       remoteFiles.add(tempFile);
     }
 
-    if (conf.excludeLatestFile) {
+    if (conf.excludeLatestFile && !remoteFiles.isEmpty()) {
       if (conf.sortBy == SortFileBy.FILECREATETIME_ASC || conf.sortBy == SortFileBy.FILECREATETIME_DESC) {
         int direction = conf.sortBy == SortFileBy.FILECREATETIME_ASC ? 1 : -1;
         remoteFiles.sort(Comparator.comparingLong(b -> b.lastModified));
